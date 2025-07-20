@@ -11,11 +11,11 @@ const app = express();
 const mongoose = require('mongoose');
 
 // ✅ Always connect to this specific database name
-mongoose.connect('mongodb://127.0.0.1:27017/battlex', {
-  dbName: 'battlex', // 👈 Ensures correct DB is used
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
+
 .then(() => {
   console.log('✅ MongoDB connected');
 })

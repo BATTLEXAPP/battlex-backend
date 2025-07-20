@@ -42,4 +42,26 @@ router.get('/transactions/:phone', async (req, res) => {
   });
 });
 
+// ✅ GET wallet balance (used in Flutter Home Screen)
+router.get('/:phone', async (req, res) => {
+  const { phone } = req.params;
+
+  try {
+    const user = await User.findOne({ phone });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      walletBalance: user.walletBalance || 0,
+    });
+
+  } catch (err) {
+    console.error('❌ Wallet balance error:', err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -1,21 +1,28 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
 const multer = require('multer');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
 
-// MongoDB connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/battlex', {
+const mongoose = require('mongoose');
+
+// ✅ Always connect to this specific database name
+mongoose.connect('mongodb://127.0.0.1:27017/battlex', {
+  dbName: 'battlex', // 👈 Ensures correct DB is used
   useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
+  useUnifiedTopology: true,
+})
+.then(() => {
   console.log('✅ MongoDB connected');
-}).catch((err) => {
+})
+.catch((err) => {
   console.error('❌ Mongo error:', err);
 });
+
 
 // Multer config for file uploads
 const upload = multer({
@@ -34,7 +41,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
 
 // Routes
-app.use('/api/user', require('./routes/userRoutes'));
+app.use('/api/user', require('./routes/auth'));             // ✅ Signup, login, verify-otp
 app.use('/api/tournament', require('./routes/tournamentRoutes'));
 app.use('/api/results', require('./routes/results'));
 app.use('/api/wallet', require('./routes/walletRoutes'));

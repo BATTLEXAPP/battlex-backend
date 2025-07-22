@@ -1,3 +1,5 @@
+// controllers\resultsController.js
+
 const Result = require('../models/result');
 const Tournament = require('../models/tournament');
 const User = require('../models/user');

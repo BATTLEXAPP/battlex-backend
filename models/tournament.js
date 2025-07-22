@@ -8,19 +8,19 @@ const tournamentSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    default: ''
+    required: true
   },
   game: {
     type: String,
-    default: 'Free Fire' // You can override this per tournament
+    default: 'Free Fire'
   },
   date: {
-    type: String,
-    required: true // e.g., '2025-07-04'
+    type: Date,
+    required: true
   },
   time: {
     type: String,
-    required: true // e.g., '18:30'
+    required: true
   },
   entryFee: {
     type: Number,
@@ -44,7 +44,7 @@ const tournamentSchema = new mongoose.Schema({
   },
   rules: {
     type: [String],
-    default: ['No emulators', 'No teaming'] // Pre-fill basic rules
+    default: ['No emulators', 'No teaming']
   },
   players: [
     {

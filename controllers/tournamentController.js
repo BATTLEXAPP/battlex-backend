@@ -17,18 +17,19 @@ exports.createTournament = async (req, res) => {
     }
 
     const tournament = new Tournament({
-      title,
-      description,
-      game,
-      date,
-      time,
-      entryFee,
-      maxPlayers,
-      roomId,
-      roomPassword,
-      prizePool,
-      rules
-    });
+  title,
+  description,
+  game,
+  date: new Date(date),  // ✅ Convert to Date object
+  time,
+  entryFee,
+  maxPlayers,
+  roomId,
+  roomPassword,
+  prizePool,
+  rules
+});
+
 
     await tournament.save();
     res.status(201).json({ message: "Tournament created", tournament });
@@ -77,7 +78,12 @@ exports.joinTournament = async (req, res) => {
 
     res.json({ message: "Successfully joined tournament", walletBalance: user.walletBalance });
   } catch (err) {
-    console.error("❌ Error in joinTournament:", err);
+    console.error("❌ Error in joinTournament:", {
+  name: err.name,
+  message: err.message,
+  stack: err.stack
+});
+
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -102,7 +108,7 @@ exports.getJoinedPlayers = async (req, res) => {
 // ✅ Submit match result
 exports.submitResult = async (req, res) => {
   try {
-    const { userId, tournamentId, kills, rank, screenshotUrl } = req.body;
+    const { userId, tournamentId, kills, rank, screenshotUrl, prize } = req.body;
 
     const alreadySubmitted = await Result.findOne({ userId, tournamentId });
     if (alreadySubmitted) {
@@ -114,6 +120,7 @@ exports.submitResult = async (req, res) => {
       tournamentId,
       kills,
       rank,
+      prize,
       screenshotUrl
     });
 
@@ -142,7 +149,7 @@ exports.verifyResult = async (req, res) => {
         return res.status(404).json({ error: "Tournament or user not found" });
       }
 
-      const prize = parseFloat(tournament.prizePool || 0);
+      const prize = parseFloat(result.prize || 0);
       user.walletBalance += prize;
       await user.save();
 
@@ -168,7 +175,7 @@ exports.verifyResult = async (req, res) => {
 exports.getAllResults = async (req, res) => {
   try {
     const results = await Result.find()
-      .populate('userId', 'username phone')
+      .populate('userId', 'username phoneNumber')
       .populate('tournamentId', 'title date');
 
     res.json({ results });
@@ -191,5 +198,30 @@ exports.getUserHistory = async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching user history:", err);
     res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
+// ✅ Fetch all tournaments
+exports.getAllTournaments = async (req, res) => {
+  try {
+    const tournaments = await Tournament.find().sort({ date: -1 });
+
+    if (!tournaments || tournaments.length === 0) {
+      console.log("⚠️ No tournaments found in DB");
+    }
+
+    res.status(200).json({ success: true, data: tournaments });
+  } catch (error) {
+    console.error("❌ Error fetching tournaments FULL:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch tournament",
+      error: error.message
+    });
   }
 };

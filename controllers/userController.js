@@ -7,13 +7,14 @@ const sendMail = require('../mail');
 // ----------------------- LOGIN -----------------------
 exports.login = async (req, res) => {
   try {
-    const { phoneNumber, password } = req.body;
+    const phoneNumber = req.body.phoneNumber?.trim();
+    const username = req.body.username?.trim();
 
-    if (!phoneNumber || !password) {
-      return res.status(400).json({ success: false, message: 'Phone number and password are required' });
+    if (!phoneNumber || !username) {
+      return res.status(400).json({ success: false, message: 'Phone number and username are required' });
     }
 
-    const user = await User.findOne({ phoneNumber });
+    const user = await User.findOne({ phoneNumber, username });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -23,15 +24,14 @@ exports.login = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Please verify your account via OTP' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
-    }
-
     return res.status(200).json({
       success: true,
       message: 'Login successful',
-      user,
+      user: {
+        phoneNumber: user.phoneNumber,
+        username: user.username,
+        walletBalance: user.walletBalance || 0,
+      },
     });
 
   } catch (error) {
@@ -79,8 +79,12 @@ exports.verifyOtp = async (req, res) => {
     const { phoneNumber, email, code, username, password } = req.body;
 
     const otp = await OTP.findOne({ phoneNumber, email, code });
-    if (!otp || Date.now() > otp.expiresAt) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    if (!otp) {
+      return res.status(400).json({ success: false, message: 'Invalid OTP' });
+    }
+
+    if (Date.now() > otp.expiresAt) {
+      return res.status(400).json({ success: false, message: 'OTP has expired' });
     }
 
     const existingUser = await User.findOne({ phoneNumber });
@@ -136,8 +140,8 @@ exports.addMoney = async (req, res) => {
   try {
     const { phoneNumber, amount } = req.body;
 
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: 'Amount must be positive' });
+    if (!amount || isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ success: false, message: 'Amount must be a positive number' });
     }
 
     const user = await User.findOne({ phoneNumber });
@@ -171,7 +175,7 @@ exports.withdrawMoney = async (req, res) => {
   try {
     const { phoneNumber, amount } = req.body;
 
-    if (!amount || amount < 50) {
+    if (!amount || isNaN(amount) || amount < 50) {
       return res.status(400).json({ success: false, message: 'Minimum withdrawal is ₹50' });
     }
 
@@ -215,7 +219,7 @@ exports.getTransactions = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const transactions = await Transaction.find({ user: user._id }).sort({ date: -1 });
+    const transactions = await Transaction.find({ user: user._id }).sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,

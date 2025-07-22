@@ -1,9 +1,12 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const router = express.Router();
-const User = require('../models/user');
-const sendMail = require('../mail'); // ✅ using mail.js for sending email
 
-// Signup Route
+const User = require('../models/user');
+const sendMail = require('../mail');
+const UserController = require('../controllers/userController'); // ✅ Controller-based login
+
+// -------------------- SIGNUP --------------------
 router.post('/signup', async (req, res) => {
   try {
     const { username, password, email, phoneNumber } = req.body;
@@ -12,19 +15,22 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
-    const userExists = await User.findOne({ $or: [{ email }, { phoneNumber }] });
-    if (userExists) {
+    const existingUser = await User.findOne({ $or: [{ email }, { phoneNumber }] });
+    if (existingUser) {
       return res.status(409).json({ success: false, message: 'User already exists' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10); // 🔐 Hash password
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
 
     const newUser = new User({
       username,
-      password,
       email,
       phoneNumber,
+      password: hashedPassword,
       otp,
+      otpExpiry,
       isVerified: false
     });
 
@@ -33,20 +39,18 @@ router.post('/signup', async (req, res) => {
     await sendMail({
       to: email,
       subject: '🔐 BattleX OTP Verification',
-      text: `Hello ${username},\n\nYour OTP is: ${otp}\n\nDo not share this with anyone.`,
+      text: `Hello ${username},\n\nYour OTP is: ${otp}\n\nIt will expire in 10 minutes.\n\nDo not share this with anyone.`,
     });
 
     res.status(200).json({ success: true, message: 'OTP sent to email' });
 
   } catch (err) {
-    console.error('❌ Signup Error:', err); // 👈 Show complete error
+    console.error('❌ Signup Error:', err);
     res.status(500).json({ success: false, message: 'Signup failed' });
   }
 });
 
-
-
-// ✅ OTP Verification Route
+// -------------------- VERIFY OTP --------------------
 router.post('/verify-otp', async (req, res) => {
   const { email, otp } = req.body;
 
@@ -65,12 +69,13 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already verified' });
     }
 
-    if (user.otp !== otp) {
+    if (user.otp !== otp || Date.now() > user.otpExpiry) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
     user.isVerified = true;
     user.otp = null;
+    user.otpExpiry = null;
     await user.save();
 
     res.status(200).json({ success: true, message: 'OTP verified successfully' });
@@ -80,8 +85,7 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-
-// ✅ Resend OTP Route
+// -------------------- RESEND OTP --------------------
 router.post('/resend-otp', async (req, res) => {
   const { email } = req.body;
 
@@ -102,12 +106,13 @@ router.post('/resend-otp', async (req, res) => {
 
     const newOtp = Math.floor(100000 + Math.random() * 900000).toString();
     user.otp = newOtp;
+    user.otpExpiry = Date.now() + 10 * 60 * 1000;
     await user.save();
 
     await sendMail({
       to: email,
       subject: '🔁 BattleX OTP Resend',
-      text: `Hello ${user.username},\n\nYour new OTP is: ${newOtp}\n\nDo not share this with anyone.`,
+      text: `Hello ${user.username},\n\nYour new OTP is: ${newOtp}\n\nIt will expire in 10 minutes.`,
     });
 
     res.status(200).json({ success: true, message: 'New OTP sent to email.' });
@@ -116,5 +121,8 @@ router.post('/resend-otp', async (req, res) => {
     res.status(500).json({ success: false, message: 'Resend failed' });
   }
 });
+
+// -------------------- LOGIN --------------------
+router.post('/login', UserController.login); // ✅ Keep controller-based login with phoneNumber + username
 
 module.exports = router;

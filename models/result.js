@@ -1,3 +1,5 @@
+// models/result.js
+
 const mongoose = require('mongoose');
 
 const resultSchema = new mongoose.Schema({

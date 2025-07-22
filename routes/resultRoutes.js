@@ -1,6 +1,8 @@
+// routes/resultRoutes.js
+
 const express = require('express');
 const router = express.Router(); // ✅ CORRECT WAY
-const resultController = require('../controllers/resultController');
+const resultController = require('../controllers/resultsController');
 
 // 1. Submit match result
 router.post('/submit', resultController.submitResult);

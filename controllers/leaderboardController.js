@@ -1,3 +1,5 @@
+// controllers\leaderboardController.js
+
 const User = require('../models/user');
 
 exports.getTopPlayers = async (req, res) => {

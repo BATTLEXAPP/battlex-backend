@@ -4,27 +4,39 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-require('dotenv').config();
+const mongoose = require('mongoose');
 
 const app = express();
 
-const mongoose = require('mongoose');
+// ✅ Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
 
-// ✅ Always connect to this specific database name
+// ✅ Connect MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
+.then(() => console.log('✅ MongoDB connected'))
+.catch(err => console.error('❌ MongoDB error:', err));
 
-.then(() => {
-  console.log('✅ MongoDB connected');
-})
-.catch((err) => {
-  console.error('❌ Mongo error:', err);
-});
+// ✅ Routes
+const authRoutes = require('./routes/auth');
+const tournamentRoutes = require('./routes/tournaments');
+const resultRoutes = require('./routes/resultRoutes');
+const walletRoutes = require('./routes/walletRoutes');
 
+app.use('/api/auth', authRoutes);            // ✅ Login, signup, OTP
+app.use('/api/tournament', tournamentRoutes);
+app.use('/api/results', resultRoutes);
+app.use('/api/wallet', walletRoutes);
 
-// Multer config for file uploads
+// ✅ Remove duplicate route line (IMPORTANT)
+// ❌ Do NOT use: app.use('/api/user', require('./routes/auth'))
+
+// ✅ Result Upload Endpoint
 const upload = multer({
   dest: 'uploads/',
   fileFilter: (req, file, cb) => {
@@ -34,19 +46,6 @@ const upload = multer({
   }
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
-
-// Routes
-app.use('/api/user', require('./routes/auth'));             // ✅ Signup, login, verify-otp
-app.use('/api/tournament', require('./routes/tournamentRoutes'));
-app.use('/api/results', require('./routes/results'));
-app.use('/api/wallet', require('./routes/walletRoutes'));
-
-// Result Upload (for screenshot)
 const Result = require('./models/result');
 app.post('/api/results/upload', upload.single('screenshot'), async (req, res) => {
   try {
@@ -78,12 +77,42 @@ app.post('/api/results/upload', upload.single('screenshot'), async (req, res) =>
   }
 });
 
-// Default error handler
+// 🧪 Test DB
+app.get('/test-db', async (req, res) => {
+  try {
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    res.json({ collections });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 🗑️ Delete old tournaments
+const Tournament = require('./models/tournament');
+app.delete('/api/tournament/delete-old', async (req, res) => {
+  try {
+    const all = await Tournament.find({});
+    const invalid = all.filter(t => typeof t.date === 'string');
+
+    const idsToDelete = invalid.map(t => t._id);
+    await Tournament.deleteMany({ _id: { $in: idsToDelete } });
+
+    res.json({
+      deletedCount: idsToDelete.length,
+      message: "Old tournaments with invalid date removed"
+    });
+  } catch (err) {
+    console.error("❌ Error deleting old tournaments:", err);
+    res.status(500).json({ error: "Failed to delete" });
+  }
+});
+
+// 🧯 Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Server error:', err.message);
   res.status(500).json({ success: false, message: err.message || 'Server error' });
 });
 
-// Start server
+// 🚀 Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server ready: http://localhost:${PORT}`));

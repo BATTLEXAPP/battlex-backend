@@ -1,10 +1,8 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/user');
 const Transaction = require('../models/transaction');
-const OTP = require('../models/otp');
 const sendMail = require('../mail');
 
-// ----------------------- LOGIN -----------------------
 exports.login = async (req, res) => {
   try {
     const phoneNumber = req.body.phoneNumber?.trim();
@@ -40,7 +38,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// ----------------------- SIGNUP (Send OTP) -----------------------
 exports.signup = async (req, res) => {
   try {
     const { phoneNumber, username, email, password } = req.body;
@@ -55,9 +52,19 @@ exports.signup = async (req, res) => {
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 min
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
-    await OTP.create({ phoneNumber, email, code: otpCode, expiresAt });
+    const newUser = new User({
+      phoneNumber,
+      username,
+      email,
+      password, // Will be hashed after OTP verified
+      otp: otpCode,
+      otpExpiry,
+      isVerified: false,
+    });
+
+    await newUser.save();
 
     await sendMail({
       to: email,
@@ -73,46 +80,55 @@ exports.signup = async (req, res) => {
   }
 };
 
-// ----------------------- VERIFY OTP -----------------------
 exports.verifyOtp = async (req, res) => {
   try {
     const { phoneNumber, email, code, username, password } = req.body;
 
-    const otp = await OTP.findOne({ phoneNumber, email, code });
-    if (!otp) {
+    const user = await User.findOne({ phoneNumber, email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ success: false, message: 'User already verified' });
+    }
+
+    if (String(user.otp) !== String(code)) {
       return res.status(400).json({ success: false, message: 'Invalid OTP' });
     }
 
-    if (Date.now() > otp.expiresAt) {
+    if (Date.now() > new Date(user.otpExpiry).getTime()) {
       return res.status(400).json({ success: false, message: 'OTP has expired' });
-    }
-
-    const existingUser = await User.findOne({ phoneNumber });
-    if (existingUser) {
-      return res.status(409).json({ success: false, message: 'User already exists' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({
-      phoneNumber,
-      email,
-      username,
-      password: hashedPassword,
-      walletBalance: 0,
-      isVerified: true,
+    user.username = username;
+    user.password = hashedPassword;
+    user.walletBalance = 0;
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpiry = null;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP verified and user created',
+      user: {
+        phoneNumber: user.phoneNumber,
+        username: user.username,
+        email: user.email,
+      },
     });
-
-    await newUser.save();
-    await OTP.deleteOne({ _id: otp._id });
-
-    return res.status(200).json({ success: true, message: 'OTP verified and user created', user: newUser });
 
   } catch (error) {
     console.error('❌ OTP Verification Error:', error);
     return res.status(500).json({ success: false, message: 'OTP verification failed' });
   }
 };
+
 
 // ----------------------- GET WALLET BALANCE -----------------------
 exports.getWalletBalance = async (req, res) => {

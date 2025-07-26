@@ -4,7 +4,7 @@ const router = express.Router();
 
 const User = require('../models/user');
 const sendMail = require('../mail');
-const UserController = require('../controllers/userController'); // ✅ Controller-based login
+const UserController = require('../controllers/userController'); // ✅ Login handled in controller
 
 // -------------------- SIGNUP --------------------
 router.post('/signup', async (req, res) => {
@@ -20,9 +20,9 @@ router.post('/signup', async (req, res) => {
       return res.status(409).json({ success: false, message: 'User already exists' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10); // 🔐 Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
+    const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     const newUser = new User({
       username,
@@ -69,7 +69,7 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already verified' });
     }
 
-    if (user.otp !== otp || Date.now() > user.otpExpiry) {
+    if (String(user.otp) !== String(otp) || Date.now() > user.otpExpiry) {
       return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
@@ -123,6 +123,6 @@ router.post('/resend-otp', async (req, res) => {
 });
 
 // -------------------- LOGIN --------------------
-router.post('/login', UserController.login); // ✅ Keep controller-based login with phoneNumber + username
+router.post('/login', UserController.login); // ✅ Controller-based login
 
 module.exports = router;

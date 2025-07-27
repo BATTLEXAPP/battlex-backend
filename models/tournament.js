@@ -1,60 +1,67 @@
+//models/tournament.js
+
 const mongoose = require('mongoose');
 
 const tournamentSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
   },
   description: {
     type: String,
-    required: true
+    required: true,
   },
   game: {
     type: String,
-    default: 'Free Fire'
+    default: 'Free Fire',
+  },
+  gameType: {
+    type: String,
+    enum: ['BR', 'CS'], // Battle Royale or Clash Squad
+    required: true,
   },
   date: {
     type: Date,
-    required: true
+    required: true,
   },
   time: {
     type: String,
-    required: true
+    required: true,
   },
   entryFee: {
     type: Number,
-    required: true
+    required: true,
   },
   maxPlayers: {
     type: Number,
-    required: true
+    required: true,
   },
   roomId: {
     type: String,
-    default: ''
+    default: '',
   },
   roomPassword: {
     type: String,
-    default: ''
+    default: '',
   },
   prizePool: {
     type: String,
-    default: '0'
+    default: '0',
   },
   rules: {
     type: [String],
-    default: ['No emulators', 'No teaming']
+    default: ['No emulators', 'No teaming'],
   },
   players: [
     {
       userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
       },
-      username: String
-    }
-  ]
+      username: String,
+    },
+  ],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Tournament', tournamentSchema);

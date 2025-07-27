@@ -1,3 +1,5 @@
+//controllers/tournamentController.js
+
 const Tournament = require('../models/tournament');
 const User = require('../models/user');
 const Transaction = require('../models/transaction');
@@ -7,10 +9,11 @@ const Result = require('../models/result');
 exports.createTournament = async (req, res) => {
   try {
     const {
-      title, description, game, date, time,
-      entryFee, maxPlayers, roomId, roomPassword,
-      prizePool, rules
-    } = req.body;
+  title, description, game, gameType, date, time,
+  entryFee, maxPlayers, roomId, roomPassword,
+  prizePool, rules
+} = req.body;
+
 
     if (!title || !entryFee || !maxPlayers || !date || !time) {
       return res.status(400).json({ error: "Missing required fields" });
@@ -20,7 +23,8 @@ exports.createTournament = async (req, res) => {
   title,
   description,
   game,
-  date: new Date(date),  // ✅ Convert to Date object
+  gameType, // ✅ Add this
+  date: new Date(date),
   time,
   entryFee,
   maxPlayers,
@@ -29,6 +33,7 @@ exports.createTournament = async (req, res) => {
   prizePool,
   rules
 });
+
 
 
     await tournament.save();
@@ -225,3 +230,19 @@ exports.getAllTournaments = async (req, res) => {
     });
   }
 };
+
+// GET /api/tournaments?gameType=BR
+exports.getTournamentsByType = async (req, res) => {
+  try {
+    const { gameType } = req.query;
+
+    const query = gameType ? { gameType } : {};
+    const tournaments = await Tournament.find(query).sort({ date: -1 });
+
+    res.status(200).json({ success: true, data: tournaments });
+  } catch (error) {
+    console.error("❌ Error fetching tournaments by gameType:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch tournaments" });
+  }
+};
+

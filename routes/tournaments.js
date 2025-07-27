@@ -6,6 +6,7 @@ const tournamentController = require('../controllers/tournamentController');
 
 // ✅ Tournament routes
 router.get('/all', tournamentController.getAllTournaments);
+router.get('/', tournamentController.getTournamentsByType); // <-- ✅ Added for gameType filtering
 router.post('/create', tournamentController.createTournament);
 router.post('/join', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);

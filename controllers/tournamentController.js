@@ -236,13 +236,16 @@ exports.getTournamentsByType = async (req, res) => {
   try {
     const { gameType } = req.query;
 
-    const query = gameType ? { gameType } : {};
-    const tournaments = await Tournament.find(query).sort({ date: -1 });
+    let tournaments;
+    if (gameType) {
+      tournaments = await Tournament.find({ gameType });
+    } else {
+      tournaments = await Tournament.find(); // return all
+    }
 
     res.status(200).json({ success: true, data: tournaments });
-  } catch (error) {
-    console.error("❌ Error fetching tournaments by gameType:", error);
-    res.status(500).json({ success: false, message: "Failed to fetch tournaments" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch tournaments' });
   }
 };
 

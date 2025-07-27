@@ -29,7 +29,7 @@ const resultRoutes = require('./routes/resultRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 
 app.use('/api/auth', authRoutes);            // ✅ Login, signup, OTP
-app.use('/api/tournament', tournamentRoutes);
+app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/wallet', walletRoutes);
 

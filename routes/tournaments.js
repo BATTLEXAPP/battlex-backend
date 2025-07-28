@@ -1,13 +1,11 @@
-// routes/tournaments.js
-
 const express = require('express');
 const router = express.Router();
 const tournamentController = require('../controllers/tournamentController');
 
 // ✅ Tournament routes
 router.get('/all', tournamentController.getAllTournaments);
-router.get('/', tournamentController.getTournamentsByType); // <-- ✅ Added for gameType filtering
-router.post('/create', tournamentController.createTournament);
+router.get('/', tournamentController.getTournamentsByType); // <-- gameType filtering
+router.post('/create', tournamentController.createTournament); // ✅ THIS one only
 router.post('/join', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);
 

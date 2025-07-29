@@ -1,5 +1,3 @@
-//models/tournament.js
-
 const mongoose = require('mongoose');
 
 const tournamentSchema = new mongoose.Schema({
@@ -62,6 +60,13 @@ const tournamentSchema = new mongoose.Schema({
       username: String,
     },
   ],
+
+  // ✅ Add this new field
+  imageUrl: {
+    type: String,
+    default: '',
+  },
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Tournament', tournamentSchema);

@@ -1,17 +1,11 @@
-//controllers/tournamentController.js
-
-const Tournament = require('../models/tournament');
-const User = require('../models/user');
-const Transaction = require('../models/transaction');
-const Result = require('../models/result');
-
 // controllers/tournamentController.js
 
 const Tournament = require('../models/tournament');
 const User = require('../models/user');
 const Transaction = require('../models/transaction');
 const Result = require('../models/result');
-const path = require('path');
+const path = require('path'); // ✅ keep this
+
 
 // ✅ Create a new tournament with image upload
 exports.createTournament = async (req, res) => {

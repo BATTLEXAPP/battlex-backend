@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const path = require('path');
 
 const tournamentSchema = new mongoose.Schema({
   title: {
@@ -16,7 +17,7 @@ const tournamentSchema = new mongoose.Schema({
   },
   gameType: {
     type: String,
-    enum: ['BR', 'CS'], // Battle Royale or Clash Squad
+    enum: ['BR', 'CS'],
     required: true,
   },
   date: {
@@ -61,10 +62,10 @@ const tournamentSchema = new mongoose.Schema({
     },
   ],
 
-  // ✅ Add this new field
-  imageUrl: {
-    type: String,
-    default: '',
+  // ✅ Replacing imageUrl with actual image filename
+  image: {
+    type: String, // e.g. "banner1.png"
+    required: true,
   },
 
 }, { timestamps: true });

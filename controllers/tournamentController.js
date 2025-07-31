@@ -5,36 +5,44 @@ const User = require('../models/user');
 const Transaction = require('../models/transaction');
 const Result = require('../models/result');
 
-// ✅ Create a new tournament
+// controllers/tournamentController.js
+
+const Tournament = require('../models/tournament');
+const User = require('../models/user');
+const Transaction = require('../models/transaction');
+const Result = require('../models/result');
+const path = require('path');
+
+// ✅ Create a new tournament with image upload
 exports.createTournament = async (req, res) => {
   try {
     const {
-  title, description, game, gameType, date, time,
-  entryFee, maxPlayers, roomId, roomPassword,
-  prizePool, rules
-} = req.body;
+      title, description, game, gameType, date, time,
+      entryFee, maxPlayers, roomId, roomPassword,
+      prizePool, rules
+    } = req.body;
 
-
-    if (!title || !entryFee || !maxPlayers || !date || !time) {
-      return res.status(400).json({ error: "Missing required fields" });
+    if (!title || !entryFee || !maxPlayers || !date || !time || !req.file) {
+      return res.status(400).json({ error: "Missing required fields or image file" });
     }
 
+    const imageFilename = req.file.filename; // multer stores this
+
     const tournament = new Tournament({
-  title,
-  description,
-  game,
-  gameType, // ✅ Add this
-  date: new Date(date),
-  time,
-  entryFee,
-  maxPlayers,
-  roomId,
-  roomPassword,
-  prizePool,
-  rules
-});
-
-
+      title,
+      description,
+      game,
+      gameType,
+      date: new Date(date),
+      time,
+      entryFee,
+      maxPlayers,
+      roomId,
+      roomPassword,
+      prizePool,
+      rules,
+      image: imageFilename // ✅ Save uploaded filename
+    });
 
     await tournament.save();
     res.status(201).json({ message: "Tournament created", tournament });

@@ -1,12 +1,31 @@
-//routes/tournaments.js
+// routes/tournaments.js
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
 const tournamentController = require('../controllers/tournamentController');
+
+// ✅ Multer storage config
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/'); // files go to /uploads/
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({ storage });
 
 // ✅ Tournament routes
 router.get('/all', tournamentController.getAllTournaments);
-router.get('/', tournamentController.getTournamentsByType); // <-- gameType filtering
-router.post('/create', tournamentController.createTournament); // ✅ THIS one only
+router.get('/', tournamentController.getTournamentsByType);
+
+// ✅ Use multer for image upload
+router.post('/create', upload.single('image'), tournamentController.createTournament);
+
 router.post('/join', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);
 

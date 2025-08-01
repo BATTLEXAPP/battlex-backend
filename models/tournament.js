@@ -44,10 +44,10 @@ const tournamentSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-  prizePool: {
-    type: String,
-    default: '0',
-  },
+  prize: {
+  type: String,
+  default: '0',
+},
   rules: {
     type: [String],
     default: ['No emulators', 'No teaming'],

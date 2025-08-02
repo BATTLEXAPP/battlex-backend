@@ -26,7 +26,7 @@ router.get('/', tournamentController.getTournamentsByType);
 // ✅ Use multer for image upload
 router.post('/create', upload.single('image'), tournamentController.createTournament);
 
-router.post('/join', tournamentController.joinTournament);
+router.post('/join/:id', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);
 
 // ✅ Match result routes

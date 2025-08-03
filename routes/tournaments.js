@@ -34,25 +34,38 @@ router.get('/all', tournamentController.getAllTournaments);
 router.get('/', tournamentController.getTournamentsByType);
 
 // ✅ Use multer for image upload
+// ✅ Use multer for image upload
 router.post('/create', upload.single('image'), async (req, res) => {
   try {
-    const currentYear = new Date().getFullYear(); // ✅ define inside route
-    const fullDateString = `${req.body.date} ${currentYear} ${req.body.time}`; // e.g., "04 Aug 2025 5:00PM"
-    const tournamentDate = new Date(fullDateString);
+    const {
+      title, description, entryFee, maxPlayers, roomId, roomPassword,
+      gameType, date, prizePool, rules
+    } = req.body;
+
+    const currentYear = new Date().getFullYear();
+    const fullDateString = `${date} ${currentYear}`; // e.g., "04 Aug, 6:00PM 2025"
+
+    const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
+    if (!parsedDate.isValid()) {
+      return res.status(400).json({ message: 'Invalid date format. Use: 04 Aug, 6:00PM' });
+    }
+
+    const tournamentDate = parsedDate.toDate();
 
     const tournament = new Tournament({
-      title: req.body.title,
-      description: req.body.description,
-      entryFee: req.body.entryFee,
-      maxPlayers: req.body.maxPlayers,
-      roomId: req.body.roomId,
-      roomPassword: req.body.roomPassword,
-      gameType: req.body.gameType,
-      date: req.body.date,
-      time: req.body.time,
-      prizePool: parseInt(req.body.entryFee) * parseInt(req.body.maxPlayers), // 💰 Prize pool logic
+      title,
+      description,
+      entryFee: Number(entryFee),
+      maxPlayers: Number(maxPlayers),
+      roomId,
+      roomPassword,
+      gameType,
+      date,                        // original formatted string
+      time: date,                  // same as above, you can customize if needed
+      prizePool: Number(entryFee) * Number(maxPlayers),
       imageFilename: req.file ? req.file.filename : '',
-      timestamp: tournamentDate.toISOString()
+      rules,
+      timestamp: tournamentDate.toISOString() // parsed full date for sorting/filtering
     });
 
     await tournament.save();
@@ -62,6 +75,7 @@ router.post('/create', upload.single('image'), async (req, res) => {
     res.status(500).json({ message: 'Failed to create tournament', error });
   }
 });
+
 
 
 router.post('/join/:id', tournamentController.joinTournament);

@@ -16,18 +16,18 @@
       prizePool, rules
     } = req.body;
 
-    if (!title || !entryFee || !maxPlayers || !date || !time || !req.file) {
+    if (!title || !entryFee || !maxPlayers || !date || !req.file) {
       return res.status(400).json({ error: "Missing required fields or image file" });
     }
 
     const currentYear = new Date().getFullYear();
 
     // Combine the input date and time with the current year
-    const fullDateString = `${date} ${time} ${currentYear}`;
-const parsedDate = moment(fullDateString, 'DD MMM hh:mmA YYYY');
+    const fullDateString = `${date} ${currentYear}`;
+    const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
 
 if (!parsedDate.isValid()) {
-  return res.status(400).json({ error: "Invalid date/time format" });
+  return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
 }
 
 const tournamentDate = parsedDate.toDate();
@@ -39,10 +39,9 @@ const tournament = new Tournament({
   description,
   game,
   gameType,
-  date: parsedDate.toISOString(),
-  time,
-  entryFee: Number(entryFee) || 0,
-  maxPlayers: Number(maxPlayers) || 0,
+  date,        // the original input like "04 Aug, 6:00PM"
+  entryFee: Number(entryFee),
+  maxPlayers: Number(maxPlayers),
   roomId,
   roomPassword,
   prizePool: calculatedPrizePool,
@@ -51,6 +50,11 @@ const tournament = new Tournament({
   timestamp: tournamentDate.toISOString()
 });
 
+console.log("📦 Prize Pool Calculation:", {
+  entryFee,
+  maxPlayers,
+  calculatedPrizePool
+});
 
     await tournament.save();
 

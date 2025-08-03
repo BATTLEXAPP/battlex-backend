@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const path = require('path');
 
 const tournamentSchema = new mongoose.Schema({
   title: {
@@ -21,11 +20,11 @@ const tournamentSchema = new mongoose.Schema({
     required: true,
   },
   date: {
-    type: Date,
+    type: String, // "04 Aug, 6:00PM"
     required: true,
   },
-  time: {
-    type: String,
+  timestamp: {
+    type: Date, // actual Date object for filtering/sorting
     required: true,
   },
   entryFee: {
@@ -44,10 +43,10 @@ const tournamentSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-  prize: {
-  type: String,
-  default: '0',
-},
+  prizePool: {
+    type: Number,
+    default: 0,
+  },
   rules: {
     type: [String],
     default: ['No emulators', 'No teaming'],
@@ -61,13 +60,10 @@ const tournamentSchema = new mongoose.Schema({
       username: String,
     },
   ],
-
-  // ✅ Replacing imageUrl with actual image filename
-  image: {
-    type: String, // e.g. "banner1.png"
+  imageFilename: {
+    type: String,
     required: true,
-  },
-
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Tournament', tournamentSchema);

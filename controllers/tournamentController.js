@@ -23,8 +23,11 @@
     const currentYear = new Date().getFullYear();
 
     // Combine the input date and time with the current year
-    const fullDateString = `${date} ${currentYear}`;
+    const fullDateString = `${req.body.date} ${currentYear}`; // "04 Aug, 6:00PM 2025"
     const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
+
+    console.log('entryFee:', entryFee, 'maxPlayers:', maxPlayers);
+
 
 if (!parsedDate.isValid()) {
   return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });

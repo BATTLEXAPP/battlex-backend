@@ -5,7 +5,7 @@
   const Transaction = require('../models/transaction');
   const Result = require('../models/result');
   const path = require('path'); // ✅ keep this
-
+  const moment = require('moment');
 
   // ✅ Create a new tournament with image upload
   exports.createTournament = async (req, res) => {
@@ -23,30 +23,34 @@
     const currentYear = new Date().getFullYear();
 
     // Combine the input date and time with the current year
-    const fullDateString = `${date} ${currentYear} ${time}`; // e.g., "04 Aug 2025 5:00PM"
-    const parsedDate = new Date(fullDateString);
+    const fullDateString = `${date} ${time} ${currentYear}`;
+const parsedDate = moment(fullDateString, 'DD MMM hh:mmA YYYY');
 
-    if (isNaN(parsedDate.getTime())) {
-      return res.status(400).json({ error: "Invalid date/time format" });
-    }
+if (!parsedDate.isValid()) {
+  return res.status(400).json({ error: "Invalid date/time format" });
+}
 
-    const imageFilename = req.file.filename;
+const tournamentDate = parsedDate.toDate();
+const imageFilename = req.file.filename;
+const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
 
-    const tournament = new Tournament({
-      title,
-      description,
-      game,
-      gameType,
-      date: parsedDate.toISOString(),
-      time,
-      entryFee: Number(entryFee) || 0,
-      maxPlayers: Number(maxPlayers) || 0,
-      roomId,
-      roomPassword,
-      prizePool: Number(prizePool) || 0,
-      rules,
-      image: imageFilename
-    });
+const tournament = new Tournament({
+  title,
+  description,
+  game,
+  gameType,
+  date: parsedDate.toISOString(),
+  time,
+  entryFee: Number(entryFee) || 0,
+  maxPlayers: Number(maxPlayers) || 0,
+  roomId,
+  roomPassword,
+  prizePool: calculatedPrizePool,
+  rules,
+  image: imageFilename,
+  timestamp: tournamentDate.toISOString()
+});
+
 
     await tournament.save();
 

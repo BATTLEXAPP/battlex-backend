@@ -5,11 +5,6 @@ const multer = require('multer');
 const path = require('path');
 const tournamentController = require('../controllers/tournamentController');
 
-const currentYear = new Date().getFullYear();
-const fullDateString = `${req.body.date} ${currentYear} ${req.body.time}`; // e.g., "04 Aug 2025 5:00PM"
-const formattedDate = new Date(fullDateString);
-
-
 // ✅ Multer storage config
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -29,7 +24,35 @@ router.get('/all', tournamentController.getAllTournaments);
 router.get('/', tournamentController.getTournamentsByType);
 
 // ✅ Use multer for image upload
-router.post('/create', upload.single('image'), tournamentController.createTournament);
+router.post('/create', upload.single('image'), async (req, res) => {
+  try {
+    const currentYear = new Date().getFullYear(); // ✅ define inside route
+    const fullDateString = `${req.body.date} ${currentYear} ${req.body.time}`; // e.g., "04 Aug 2025 5:00PM"
+    const tournamentDate = new Date(fullDateString);
+
+    const tournament = new Tournament({
+      title: req.body.title,
+      description: req.body.description,
+      entryFee: req.body.entryFee,
+      maxPlayers: req.body.maxPlayers,
+      roomId: req.body.roomId,
+      roomPassword: req.body.roomPassword,
+      gameType: req.body.gameType,
+      date: req.body.date,
+      time: req.body.time,
+      prizePool: parseInt(req.body.entryFee) * parseInt(req.body.maxPlayers), // 💰 Prize pool logic
+      imageFilename: req.file ? req.file.filename : '',
+      timestamp: tournamentDate.toISOString()
+    });
+
+    await tournament.save();
+    res.status(201).json({ message: 'Tournament created successfully', tournament });
+  } catch (error) {
+    console.error('Error creating tournament:', error);
+    res.status(500).json({ message: 'Failed to create tournament', error });
+  }
+});
+
 
 router.post('/join/:id', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);

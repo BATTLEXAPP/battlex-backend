@@ -3,7 +3,15 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs'); // ✅ Needed for fs.existsSync
+
 const tournamentController = require('../controllers/tournamentController');
+const Tournament = require('../models/tournament'); // ✅ Required
+
+const uploadPath = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath);
+}
 
 // ✅ Multer storage config
 const storage = multer.diskStorage({

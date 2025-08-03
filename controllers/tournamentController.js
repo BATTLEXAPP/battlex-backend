@@ -9,66 +9,78 @@
 
   // ✅ Create a new tournament with image upload
   exports.createTournament = async (req, res) => {
-    try {
-      const {
-        title, description, game, gameType, date, time,
-        entryFee, maxPlayers, roomId, roomPassword,
-        prizePool, rules
-      } = req.body;
+  try {
+    const {
+      title, description, game, gameType, date, time,
+      entryFee, maxPlayers, roomId, roomPassword,
+      prizePool, rules
+    } = req.body;
 
-      if (!title || !entryFee || !maxPlayers || !date || !time || !req.file) {
-        return res.status(400).json({ error: "Missing required fields or image file" });
-      }
+    if (!title || !entryFee || !maxPlayers || !date || !time || !req.file) {
+      return res.status(400).json({ error: "Missing required fields or image file" });
+    }
 
-      const imageFilename = req.file.filename; // multer stores this
+    const currentYear = new Date().getFullYear();
 
-      const tournament = new Tournament({
-        title,
-        description,
-        game,
-        gameType,
-        date: new Date(date),
-        time,
-        entryFee: Number(entryFee) || 0,
-        maxPlayers: Number(maxPlayers) || 0,
-        roomId,
-        roomPassword,
-        prizePool: Number(prizePool) || 0,
-        rules,
-        image: imageFilename // ✅ Save uploaded filename
-      });
+    // Combine the input date and time with the current year
+    const fullDateString = `${date} ${currentYear} ${time}`; // e.g., "04 Aug 2025 5:00PM"
+    const parsedDate = new Date(fullDateString);
 
-      await tournament.save();
-      const safeTournament = {
-  _id: tournament._id,
-  title: tournament.title,
-  description: tournament.description || "",
-  game: tournament.game || "",
-  gameType: tournament.gameType || "",
-  date: tournament.date,
-  time: tournament.time,
-  entryFee: tournament.entryFee || 0,
-  maxPlayers: tournament.maxPlayers || 0,
-  roomId: tournament.roomId || "",
-  roomPassword: tournament.roomPassword || "",
-  prizePool: tournament.prizePool || 0,
-  rules: tournament.rules || [],
-  image: tournament.image || "",
-  players: tournament.players || [],
-  createdAt: tournament.createdAt,
-  updatedAt: tournament.updatedAt,
+    if (isNaN(parsedDate.getTime())) {
+      return res.status(400).json({ error: "Invalid date/time format" });
+    }
+
+    const imageFilename = req.file.filename;
+
+    const tournament = new Tournament({
+      title,
+      description,
+      game,
+      gameType,
+      date: parsedDate.toISOString(),
+      time,
+      entryFee: Number(entryFee) || 0,
+      maxPlayers: Number(maxPlayers) || 0,
+      roomId,
+      roomPassword,
+      prizePool: Number(prizePool) || 0,
+      rules,
+      image: imageFilename
+    });
+
+    await tournament.save();
+
+    const safeTournament = {
+      _id: tournament._id,
+      title: tournament.title,
+      description: tournament.description || "",
+      game: tournament.game || "",
+      gameType: tournament.gameType || "",
+      date: tournament.date,
+      time: tournament.time,
+      entryFee: tournament.entryFee || 0,
+      maxPlayers: tournament.maxPlayers || 0,
+      roomId: tournament.roomId || "",
+      roomPassword: tournament.roomPassword || "",
+      prizePool: tournament.prizePool || 0,
+      rules: tournament.rules || [],
+      image: tournament.image || "",
+      players: tournament.players || [],
+      createdAt: tournament.createdAt,
+      updatedAt: tournament.updatedAt,
+    };
+
+    res.status(201).json({
+      message: "Tournament created",
+      tournament: safeTournament,
+    });
+
+  } catch (err) {
+    console.error("❌ Error in createTournament:", err);
+    res.status(500).json({ error: "Failed to create tournament" });
+  }
 };
 
-res.status(201).json({
-  message: "Tournament created",
-  tournament: safeTournament,
-});
-
-    } catch (err) {
-      console.error("❌ Error in createTournament:", err);
-      res.status(500).json({ error: "Failed to create tournament" });
-    }
-  };
 
   // ✅ Join a tournament
     exports.joinTournament = async (req, res) => {

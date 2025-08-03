@@ -5,6 +5,11 @@ const multer = require('multer');
 const path = require('path');
 const tournamentController = require('../controllers/tournamentController');
 
+const currentYear = new Date().getFullYear();
+const fullDateString = `${req.body.date} ${currentYear} ${req.body.time}`; // e.g., "04 Aug 2025 5:00PM"
+const formattedDate = new Date(fullDateString);
+
+
 // ✅ Multer storage config
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {

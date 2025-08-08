@@ -1,5 +1,3 @@
-// models/transaction.js
-
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
@@ -8,16 +6,19 @@ const transactionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  type: {
+  transactionType: {
     type: String,
-    enum: ['credit', 'debit', 'add', 'deduct'],
+    enum: ['add_funds', 'tournament_join', 'withdrawal'], // semantic enum values
     required: true
   },
   amount: {
     type: Number,
     required: true
   },
-  reason: String,
+  note: {
+    type: String,
+    default: ''
+  },
   date: {
     type: Date,
     default: Date.now

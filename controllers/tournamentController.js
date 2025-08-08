@@ -36,6 +36,10 @@ if (!parsedDate.isValid()) {
 const tournamentDate = parsedDate.toDate();
 const imageFilename = req.file.filename;
 const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
+// Add this in createTournament if needed
+const formattedTime = parsedDate.format('hh:mmA');
+tournament.time = formattedTime;
+
 
 const tournament = new Tournament({
   title,
@@ -43,6 +47,7 @@ const tournament = new Tournament({
   game,
   gameType,
   date,        // the original input like "04 Aug, 6:00PM"
+  time: formattedTime, // Add here
   entryFee: Number(entryFee),
   maxPlayers: Number(maxPlayers),
   roomId,

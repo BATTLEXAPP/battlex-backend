@@ -7,7 +7,7 @@ const User = require('../models/user');
 // ✅ Add money to wallet
 router.post('/add', async (req, res) => {
   const { phone, amount } = req.body;
-  const user = await User.findOne({ phone });
+  const user = await User.findOne({ phoneNumber: phone });
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   user.walletBalance += amount;
@@ -20,7 +20,7 @@ router.post('/add', async (req, res) => {
 // ✅ Withdraw from wallet
 router.post('/withdraw', async (req, res) => {
   const { phone, amount } = req.body;
-  const user = await User.findOne({ phone });
+  const user = await User.findOne({ phoneNumber: phone });
   if (!user) return res.status(404).json({ error: 'User not found' });
   if (user.walletBalance < amount) return res.status(400).json({ error: 'Insufficient balance' });
 
@@ -34,7 +34,7 @@ router.post('/withdraw', async (req, res) => {
 // ✅ Get wallet transaction history
 router.get('/transactions/:phone', async (req, res) => {
   const { phone } = req.params;
-  const user = await User.findOne({ phone });
+  const user = await User.findOne({ phoneNumber: phone });
 
   if (!user) return res.status(404).json({ error: 'User not found' });
 
@@ -49,7 +49,7 @@ router.get('/:phone', async (req, res) => {
   const { phone } = req.params;
 
   try {
-    const user = await User.findOne({ phone });
+    const user = await User.findOne({ phoneNumber: phone });
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });

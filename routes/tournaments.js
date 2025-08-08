@@ -63,7 +63,7 @@ router.post('/create', upload.single('image'), async (req, res) => {
       date,                        // original formatted string
       time: date,                  // same as above, you can customize if needed
       prizePool: Number(entryFee) * Number(maxPlayers),
-      imageFilename: req.file ? req.file.filename : '',
+      image: req.file ? req.file.filename : '',
       rules,
       timestamp: tournamentDate.toISOString() // parsed full date for sorting/filtering
     });

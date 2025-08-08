@@ -57,6 +57,24 @@ exports.withdrawMoney = async (req, res) => {
   }
 };
 
+// ✅ Get wallet by phone number
+exports.getWalletByPhone = async (req, res) => {
+  try {
+    const { phoneNumber } = req.params;
+
+    const user = await User.findOne({ phoneNumber });
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    res.json({
+      success: true,
+      walletBalance: user.walletBalance || 0,
+    });
+  } catch (err) {
+    console.error("❌ Error in getWalletByPhone:", err);
+    res.status(500).json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
 // ✅ Get transaction history
 exports.getHistory = async (req, res) => {
   try {

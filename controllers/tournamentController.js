@@ -4,8 +4,13 @@ const cloudinary = require('../cloudinary');
 const moment = require('moment');
 
 // ✅ Create a new tournament with Cloudinary image upload
+// ✅ Create a new tournament with Cloudinary image upload (with debug logs)
 exports.createTournament = async (req, res) => {
   try {
+    console.log("📩 Incoming tournament create request");
+    console.log("🧾 req.body:", req.body);
+    console.log("📸 req.file:", req.file ? `${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)` : "❌ No file");
+
     const {
       title, description, game, gameType, date, time,
       entryFee, maxPlayers, roomId, roomPassword,
@@ -13,23 +18,37 @@ exports.createTournament = async (req, res) => {
     } = req.body;
 
     if (!title || !entryFee || !maxPlayers || !date || !req.file) {
+      console.error("❌ Missing fields:", {
+        title: !!title,
+        entryFee: !!entryFee,
+        maxPlayers: !!maxPlayers,
+        date: !!date,
+        file: !!req.file
+      });
       return res.status(400).json({ error: "Missing required fields or image file" });
     }
 
     const currentYear = new Date().getFullYear();
-    const fullDateString = `${date} ${currentYear}`; // "04 Aug, 6:00PM 2025"
+    const fullDateString = `${date} ${currentYear}`;
+    console.log("📅 fullDateString:", fullDateString);
     const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
 
     if (!parsedDate.isValid()) {
+      console.error("❌ Invalid date format:", fullDateString);
       return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
     }
 
     // ✅ Upload image to Cloudinary
+    console.log("☁️ Uploading image to Cloudinary...");
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: 'battlex_tournaments' },
         (error, result) => {
-          if (error) return reject(error);
+          if (error) {
+            console.error("❌ Cloudinary upload failed:", error);
+            return reject(error);
+          }
+          console.log("✅ Cloudinary upload success:", result.secure_url);
           resolve(result);
         }
       );
@@ -39,6 +58,8 @@ exports.createTournament = async (req, res) => {
     const tournamentDate = parsedDate.toDate();
     const formattedTime = parsedDate.format('hh:mmA');
     const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
+
+    console.log("📊 Calculated prize pool:", calculatedPrizePool);
 
     const tournament = new Tournament({
       title,
@@ -53,11 +74,13 @@ exports.createTournament = async (req, res) => {
       roomPassword,
       prizePool: calculatedPrizePool,
       rules,
-      image: uploadResult.secure_url, // ✅ Cloudinary URL instead of local filename
+      image: uploadResult.secure_url,
       timestamp: tournamentDate.toISOString()
     });
 
+    console.log("💾 Saving tournament to DB...");
     await tournament.save();
+    console.log("✅ Tournament saved:", tournament._id);
 
     const safeTournament = {
       _id: tournament._id,
@@ -85,7 +108,11 @@ exports.createTournament = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Error in createTournament:", err);
+    console.error("❌ Error in createTournament:", {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    });
     res.status(500).json({ error: "Failed to create tournament" });
   }
 };

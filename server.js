@@ -9,7 +9,16 @@ const mongoose = require('mongoose');
 const app = express();
 
 // ✅ Middleware
-app.use(cors());
+// ✅ Allow both mobile & web requests
+app.use(cors({
+  origin: '*', // or set to your frontend domain instead of '*'
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// ✅ Handle preflight requests for all routes
+app.options('*', cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

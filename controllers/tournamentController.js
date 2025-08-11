@@ -1,19 +1,15 @@
-  // controllers/tournamentController.js
+// controllers/tournamentController.js
+const Tournament = require('../models/tournament');
+const cloudinary = require('../cloudinary');
+const moment = require('moment');
 
-  const Tournament = require('../models/tournament');
-  const User = require('../models/user');
-  const Transaction = require('../models/transaction');
-  const Result = require('../models/result');
-  const path = require('path'); // ✅ keep this
-  const moment = require('moment');
-
-  // ✅ Create a new tournament with image upload
-  exports.createTournament = async (req, res) => {
+// ✅ Create a new tournament with Cloudinary image upload
+exports.createTournament = async (req, res) => {
   try {
     const {
       title, description, game, gameType, date, time,
       entryFee, maxPlayers, roomId, roomPassword,
-      prizePool, rules
+      rules
     } = req.body;
 
     if (!title || !entryFee || !maxPlayers || !date || !req.file) {
@@ -21,48 +17,45 @@
     }
 
     const currentYear = new Date().getFullYear();
-
-    // Combine the input date and time with the current year
-    const fullDateString = `${req.body.date} ${currentYear}`; // "04 Aug, 6:00PM 2025"
+    const fullDateString = `${date} ${currentYear}`; // "04 Aug, 6:00PM 2025"
     const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
 
-    console.log('entryFee:', entryFee, 'maxPlayers:', maxPlayers);
+    if (!parsedDate.isValid()) {
+      return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
+    }
 
+    // ✅ Upload image to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'battlex_tournaments' },
+        (error, result) => {
+          if (error) return reject(error);
+          resolve(result);
+        }
+      );
+      require('streamifier').createReadStream(req.file.buffer).pipe(stream);
+    });
 
-if (!parsedDate.isValid()) {
-  return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
-}
+    const tournamentDate = parsedDate.toDate();
+    const formattedTime = parsedDate.format('hh:mmA');
+    const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
 
-const tournamentDate = parsedDate.toDate();
-const imageFilename = req.file.filename;
-const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
-// Add this in createTournament if needed
-const formattedTime = parsedDate.format('hh:mmA');
-tournament.time = formattedTime;
-
-
-const tournament = new Tournament({
-  title,
-  description,
-  game,
-  gameType,
-  date,        // the original input like "04 Aug, 6:00PM"
-  time: formattedTime, // Add here
-  entryFee: Number(entryFee),
-  maxPlayers: Number(maxPlayers),
-  roomId,
-  roomPassword,
-  prizePool: calculatedPrizePool,
-  rules,
-  image: imageFilename,
-  timestamp: tournamentDate.toISOString()
-});
-
-console.log("📦 Prize Pool Calculation:", {
-  entryFee,
-  maxPlayers,
-  calculatedPrizePool
-});
+    const tournament = new Tournament({
+      title,
+      description,
+      game,
+      gameType,
+      date,
+      time: formattedTime,
+      entryFee: Number(entryFee),
+      maxPlayers: Number(maxPlayers),
+      roomId,
+      roomPassword,
+      prizePool: calculatedPrizePool,
+      rules,
+      image: uploadResult.secure_url, // ✅ Cloudinary URL instead of local filename
+      timestamp: tournamentDate.toISOString()
+    });
 
     await tournament.save();
 

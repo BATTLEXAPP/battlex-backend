@@ -8,29 +8,43 @@ const mongoose = require('mongoose');
 
 const app = express();
 
+// 🔍 DEBUG: Wrap express.Router to log all routes being registered
+const originalRouter = express.Router;
+express.Router = function (...args) {
+  const router = originalRouter.apply(this, args);
+
+  const wrap = (method) => {
+    const orig = router[method];
+    router[method] = function (path, ...handlers) {
+      console.log(`Registering ${method.toUpperCase()} route:`, path);
+      return orig.call(this, path, ...handlers);
+    };
+  };
+
+  ['get', 'post', 'put', 'delete', 'patch', 'options', 'all'].forEach(wrap);
+
+  return router;
+};
+
 // ✅ Middleware
-// ✅ Allow both mobile & web requests
 app.use(cors({
-  origin: '*', // or set to your frontend domain instead of '*'
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-
-// ✅ Handle preflight requests for all routes
 app.options('*', cors());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
 // ✅ Connect MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('✅ MongoDB connected'))
-.catch(err => console.error('❌ MongoDB error:', err));
+  .then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB error:', err));
 
 // ✅ Routes
 const authRoutes = require('./routes/auth');
@@ -38,13 +52,17 @@ const tournamentRoutes = require('./routes/tournaments');
 const resultRoutes = require('./routes/resultRoutes');
 const walletRoutes = require('./routes/walletRoutes');
 
-app.use('/api/auth', authRoutes);            // ✅ Login, signup, OTP
-app.use('/api/tournaments', tournamentRoutes);
-app.use('/api/results', resultRoutes);
-app.use('/api/wallet', walletRoutes);
+console.log("Mounting /api/auth");
+app.use('/api/auth', authRoutes);
 
-// ✅ Remove duplicate route line (IMPORTANT)
-// ❌ Do NOT use: app.use('/api/user', require('./routes/auth'))
+console.log("Mounting /api/tournaments");
+app.use('/api/tournaments', tournamentRoutes);
+
+console.log("Mounting /api/results");
+app.use('/api/results', resultRoutes);
+
+console.log("Mounting /api/wallet");
+app.use('/api/wallet', walletRoutes);
 
 // ✅ Result Upload Endpoint
 const upload = multer({

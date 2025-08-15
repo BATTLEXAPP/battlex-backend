@@ -22,28 +22,22 @@ exports.createTournament = async (req, res) => {
       rules, prizePool
     } = req.body;
 
-    if (!title || !entryFee || !maxPlayers || !date || !req.file || !prizePool) {
-      console.error("❌ Missing fields:", {
-        title: !!title,
-        entryFee: !!entryFee,
-        maxPlayers: !!maxPlayers,
-        date: !!date,
-        prizePool: !!prizePool,
-        file: !!req.file
-      });
+    if (!title || !entryFee || !maxPlayers || !date || !time || !req.file || !prizePool) {
+      console.error("❌ Missing fields:", { title, entryFee, maxPlayers, date, time, prizePool, file: !!req.file });
       return res.status(400).json({ error: "Missing required fields or image file" });
     }
 
     const currentYear = new Date().getFullYear();
-    const fullDateString = `${date} ${currentYear}`;
+    const fullDateString = `${date} ${time} ${currentYear}`; // ✅ include time
     console.log("📅 fullDateString:", fullDateString);
-    const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
 
+    const parsedDate = moment(fullDateString, 'DD MMM, hh:mmA YYYY');
     if (!parsedDate.isValid()) {
       console.error("❌ Invalid date format:", fullDateString);
       return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
     }
 
+    // ✅ Upload image to Cloudinary
     console.log("☁️ Uploading image to Cloudinary...");
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -61,7 +55,7 @@ exports.createTournament = async (req, res) => {
     });
 
     const tournamentDate = parsedDate.toDate();
-    const formattedTime = parsedDate.format('hh:mmA');
+    const formattedTime = parsedDate.format('hh:mmA'); // ✅ correct time from admin input
 
     const tournament = new Tournament({
       title,
@@ -74,7 +68,7 @@ exports.createTournament = async (req, res) => {
       maxPlayers: Number(maxPlayers),
       roomId,
       roomPassword,
-      prizePool: Number(prizePool), // ✅ use admin-defined prizePool
+      prizePool: Number(prizePool),
       rules,
       imageFilename: uploadResult.public_id + '.' + uploadResult.format,
       timestamp: tournamentDate.toISOString()
@@ -110,16 +104,10 @@ exports.createTournament = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Error in createTournament:", {
-      name: err.name,
-      message: err.message,
-      stack: err.stack
-    });
+    console.error("❌ Error in createTournament:", { name: err.name, message: err.message, stack: err.stack });
     res.status(500).json({ error: "Failed to create tournament" });
   }
 };
-
-
 
   // ✅ Join a tournament
     exports.joinTournament = async (req, res) => {

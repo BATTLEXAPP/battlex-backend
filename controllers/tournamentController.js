@@ -19,15 +19,16 @@ exports.createTournament = async (req, res) => {
     const {
       title, description, game, gameType, date, time,
       entryFee, maxPlayers, roomId, roomPassword,
-      rules
+      rules, prizePool
     } = req.body;
 
-    if (!title || !entryFee || !maxPlayers || !date || !req.file) {
+    if (!title || !entryFee || !maxPlayers || !date || !req.file || !prizePool) {
       console.error("❌ Missing fields:", {
         title: !!title,
         entryFee: !!entryFee,
         maxPlayers: !!maxPlayers,
         date: !!date,
+        prizePool: !!prizePool,
         file: !!req.file
       });
       return res.status(400).json({ error: "Missing required fields or image file" });
@@ -43,7 +44,6 @@ exports.createTournament = async (req, res) => {
       return res.status(400).json({ error: "Invalid date format. Expected: 04 Aug, 6:00PM" });
     }
 
-    // ✅ Upload image to Cloudinary
     console.log("☁️ Uploading image to Cloudinary...");
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -62,32 +62,27 @@ exports.createTournament = async (req, res) => {
 
     const tournamentDate = parsedDate.toDate();
     const formattedTime = parsedDate.format('hh:mmA');
-    const calculatedPrizePool = Number(entryFee) * Number(maxPlayers);
 
-    console.log("📊 Calculated prize pool:", calculatedPrizePool);
+    const tournament = new Tournament({
+      title,
+      description,
+      game,
+      gameType,
+      date,
+      time: formattedTime,
+      entryFee: Number(entryFee),
+      maxPlayers: Number(maxPlayers),
+      roomId,
+      roomPassword,
+      prizePool: Number(prizePool), // ✅ use admin-defined prizePool
+      rules,
+      imageFilename: uploadResult.public_id + '.' + uploadResult.format,
+      timestamp: tournamentDate.toISOString()
+    });
 
-    // After Cloudinary upload
-const tournament = new Tournament({
-  title,
-  description,
-  game,
-  gameType,
-  date,
-  time: formattedTime,
-  entryFee: Number(entryFee),
-  maxPlayers: Number(maxPlayers),
-  roomId,
-  roomPassword,
-  prizePool: calculatedPrizePool,
-  rules,
-  imageFilename: uploadResult.public_id + '.' + uploadResult.format,  // ✅ Use imageFilename
-  timestamp: tournamentDate.toISOString()
-});
-
-console.log("💾 Saving tournament to DB...");
-await tournament.save();
-console.log("✅ Tournament saved:", tournament._id);
-
+    console.log("💾 Saving tournament to DB...");
+    await tournament.save();
+    console.log("✅ Tournament saved:", tournament._id);
 
     const safeTournament = {
       _id: tournament._id,
@@ -123,6 +118,7 @@ console.log("✅ Tournament saved:", tournament._id);
     res.status(500).json({ error: "Failed to create tournament" });
   }
 };
+
 
 
   // ✅ Join a tournament

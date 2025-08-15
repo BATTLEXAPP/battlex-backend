@@ -80,7 +80,7 @@ const tournament = new Tournament({
   roomPassword,
   prizePool: calculatedPrizePool,
   rules,
-  imageFilename: uploadResult.secure_url,  // ✅ Use imageFilename
+  imageFilename: uploadResult.public_id + '.' + uploadResult.format,  // ✅ Use imageFilename
   timestamp: tournamentDate.toISOString()
 });
 

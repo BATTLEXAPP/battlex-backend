@@ -3,6 +3,11 @@ const Tournament = require('../models/tournament');
 const cloudinary = require('../cloudinary');
 const moment = require('moment');
 
+const User = require('../models/user');
+const Transaction = require('../models/transaction');
+const Result = require('../models/result');
+
+
 // ✅ Create a new tournament with Cloudinary image upload
 // ✅ Create a new tournament with Cloudinary image upload (with debug logs)
 exports.createTournament = async (req, res) => {

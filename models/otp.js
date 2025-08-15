@@ -19,4 +19,5 @@ const otpSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-module.exports = mongoose.model('OTP', otpSchema);
+// ✅ Safe export to prevent OverwriteModelError
+module.exports = mongoose.models.OTP || mongoose.model('OTP', otpSchema);

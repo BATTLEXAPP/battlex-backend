@@ -1,5 +1,3 @@
-// models/player.js
-
 const mongoose = require('mongoose');
 
 const playerSchema = new mongoose.Schema({
@@ -17,4 +15,5 @@ const playerSchema = new mongoose.Schema({
   prize: Number
 }, { timestamps: true });
 
-module.exports = mongoose.model('Player', playerSchema);
+// ✅ Safe export to prevent OverwriteModelError
+module.exports = mongoose.models.Player || mongoose.model('Player', playerSchema);

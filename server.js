@@ -5,72 +5,137 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const mongoose = require('mongoose');
+const fs = require('fs');
+const { pathToRegexp } = require('path-to-regexp');
+
 
 const app = express();
 
-// 🔍 DEBUG: Wrap express.Router to log all routes being registered
-const originalRouter = express.Router;
-express.Router = function (...args) {
-  const router = originalRouter.apply(this, args);
-
-  const wrap = (method) => {
-    const orig = router[method];
-    router[method] = function (path, ...handlers) {
-      console.log(`Registering ${method.toUpperCase()} route:`, path);
-      return orig.call(this, path, ...handlers);
-    };
-  };
-
-  ['get', 'post', 'put', 'delete', 'patch', 'options', 'all'].forEach(wrap);
-
-  return router;
-};
+// 🔥 Global error event logs
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err.message);
+  console.error(err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ Unhandled Rejection:', reason);
+});
 
 // ✅ Middleware
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.options('*', cors());
-
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ✅ Connect MongoDB
+// Debug request body/file
+app.use((req, res, next) => {
+  console.log("REQ BODY:", req.body);
+  console.log("REQ FILE:", req.file || "No file uploaded");
+  next();
+});
+
+// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB error:', err));
+.then(() => console.log('✅ MongoDB connected'))
+.catch(err => console.error('❌ MongoDB error:', err));
 
-// ✅ Routes
-const authRoutes = require('./routes/auth');
-const tournamentRoutes = require('./routes/tournaments');
-const resultRoutes = require('./routes/resultRoutes');
-const walletRoutes = require('./routes/walletRoutes');
+// -------------------
+// 🚨 ROUTE SCANNER
+// -------------------
+function scanRoutes(dir) {
+  const errors = [];
 
-console.log("Mounting /api/auth");
-app.use('/api/auth', authRoutes);
+  function checkFile(filePath) {
+    const lines = fs.readFileSync(filePath, 'utf-8').split('\n');
 
-console.log("Mounting /api/tournaments");
-app.use('/api/tournaments', tournamentRoutes);
+    lines.forEach((line, idx) => {
+      const match = line.match(/\brouter\.(get|post|put|delete|patch|all)\s*\(\s*['"`]([^'"`]*)['"`]/);
+      if (match) {
+        const routePath = match[2];
 
-console.log("Mounting /api/results");
-app.use('/api/results', resultRoutes);
+        // empty param check
+        if (/\/:(?=\/|$|\?)/.test(routePath)) {
+          errors.push({
+            file: filePath,
+            line: idx + 1,
+            pattern: routePath,
+            type: 'Empty param',
+            suggestion: 'Replace empty param with a valid name, e.g., /:id'
+          });
+        }
 
-console.log("Mounting /api/wallet");
-app.use('/api/wallet', walletRoutes);
+        // path-to-regexp validation
+        try {
+          pathToRegexp(routePath);
+        } catch (err) {
+          errors.push({
+            file: filePath,
+            line: idx + 1,
+            pattern: routePath,
+            type: 'Invalid pattern',
+            message: err.message,
+            suggestion: 'Check route syntax'
+          });
+        }
+      }
+    });
+  }
 
-// ✅ Result Upload Endpoint
+  function walk(dirPath) {
+    fs.readdirSync(dirPath).forEach(file => {
+      const fullPath = path.join(dirPath, file);
+      if (fs.statSync(fullPath).isDirectory()) walk(fullPath);
+      else if (file.endsWith('.js')) checkFile(fullPath);
+    });
+  }
+
+  walk(dir);
+
+  if (errors.length) {
+    console.error('\n❌ Found invalid routes:');
+    errors.forEach(e => {
+      console.error(`\nFile: ${e.file}`);
+      console.error(`Line: ${e.line}`);
+      console.error(`Pattern: "${e.pattern}"`);
+      console.error(`Type: ${e.type}`);
+      if (e.message) console.error(`Error: ${e.message}`);
+      console.error(`Suggestion: ${e.suggestion}`);
+    });
+    console.error('\n❌ Fix all route errors before starting the server.');
+    process.exit(1);
+  } else {
+    console.log('✅ All route patterns are valid.');
+  }
+}
+
+// -------------------
+// Run scanner BEFORE mounting routes
+// -------------------
+scanRoutes(path.join(__dirname, 'routes'));
+
+// -------------------
+// Mount routes AFTER scan passes
+// -------------------
+const routesPath = path.join(__dirname, 'routes');
+fs.readdirSync(routesPath).forEach(file => {
+  const filePath = path.join(routesPath, file);
+  const router = require(filePath);
+  const mountPath = `/api/${path.basename(file, '.js')}`;
+  app.use(mountPath, router);
+  console.log(`✅ Mounted ${mountPath}`);
+});
+
+// -------------------
+// Multer + Result Upload endpoint
+// -------------------
 const upload = multer({
   dest: 'uploads/',
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png/;
-    const isValid = allowed.test(file.mimetype) && allowed.test(path.extname(file.originalname).toLowerCase());
-    cb(isValid ? null : new Error('Only images allowed'), isValid);
+    const valid = allowed.test(file.mimetype) && allowed.test(path.extname(file.originalname).toLowerCase());
+    cb(valid ? null : new Error('Only images allowed'), valid);
   }
 });
 
@@ -78,22 +143,14 @@ const Result = require('./models/result');
 app.post('/api/results/upload', upload.single('screenshot'), async (req, res) => {
   try {
     const { userId, tournamentId, kills, rank, prize } = req.body;
-
     if (!userId || !tournamentId || kills === undefined || rank === undefined || prize === undefined) {
       return res.status(400).json({ success: false, message: 'Missing fields' });
     }
-
     const exists = await Result.findOne({ userId, tournamentId });
-    if (exists) {
-      return res.status(409).json({ success: false, message: 'Already submitted' });
-    }
+    if (exists) return res.status(409).json({ success: false, message: 'Already submitted' });
 
     const result = new Result({
-      userId,
-      tournamentId,
-      kills,
-      rank,
-      prize,
+      userId, tournamentId, kills, rank, prize,
       screenshotUrl: req.file ? `/uploads/${req.file.filename}` : null
     });
 
@@ -105,42 +162,16 @@ app.post('/api/results/upload', upload.single('screenshot'), async (req, res) =>
   }
 });
 
-// 🧪 Test DB
-app.get('/test-db', async (req, res) => {
-  try {
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    res.json({ collections });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// 🗑️ Delete old tournaments
-const Tournament = require('./models/tournament');
-app.delete('/api/tournament/delete-old', async (req, res) => {
-  try {
-    const all = await Tournament.find({});
-    const invalid = all.filter(t => typeof t.date === 'string');
-
-    const idsToDelete = invalid.map(t => t._id);
-    await Tournament.deleteMany({ _id: { $in: idsToDelete } });
-
-    res.json({
-      deletedCount: idsToDelete.length,
-      message: "Old tournaments with invalid date removed"
-    });
-  } catch (err) {
-    console.error("❌ Error deleting old tournaments:", err);
-    res.status(500).json({ error: "Failed to delete" });
-  }
-});
-
-// 🧯 Global error handler
+// -------------------
+// Global error handler
+// -------------------
 app.use((err, req, res, next) => {
   console.error('❌ Server error:', err.message);
   res.status(500).json({ success: false, message: err.message || 'Server error' });
 });
 
-// 🚀 Start server
+// -------------------
+// Start server
+// -------------------
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server ready: http://localhost:${PORT}`));

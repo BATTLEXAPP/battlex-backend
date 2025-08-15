@@ -1,28 +1,39 @@
 const mongoose = require('mongoose');
 
-const transactionSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  transactionType: {
+const userSchema = new mongoose.Schema({
+  phoneNumber: {
     type: String,
-    enum: ['add_funds', 'tournament_join', 'withdrawal'], // semantic enum values
+    required: true,
+    unique: true
+  },
+  username: {
+    type: String,
     required: true
   },
-  amount: {
+  walletBalance: {
     type: Number,
-    required: true
+    default: 0
   },
-  note: {
-    type: String,
-    default: ''
-  },
-  date: {
-    type: Date,
-    default: Date.now
-  }
+  transactions: [
+    {
+      type: {
+        type: String, // e.g., 'add', 'withdraw', 'entry_fee'
+        required: true
+      },
+      amount: {
+        type: Number,
+        required: true
+      },
+      date: {
+        type: Date,
+        default: Date.now
+      },
+      description: {
+        type: String
+      }
+    }
+  ]
 });
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+// ✅ Safe export to prevent OverwriteModelError
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

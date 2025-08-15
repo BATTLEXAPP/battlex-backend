@@ -28,7 +28,16 @@ const userSchema = new mongoose.Schema({
     default: false,
   },
   otp: String,
-  otpExpiry: Date
+  otpExpiry: Date,
+
+  // ✅ Add transactions inside schema
+  transactions: [
+    {
+      type: { type: String, enum: ['add', 'withdraw'], required: true },
+      amount: { type: Number, required: true },
+      timestamp: { type: Date, default: Date.now }
+    }
+  ]
 }, { timestamps: true });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.models.User || mongoose.model('User', userSchema);

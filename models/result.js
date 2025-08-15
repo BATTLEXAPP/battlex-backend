@@ -1,5 +1,3 @@
-// models/result.js
-
 const mongoose = require('mongoose');
 
 const resultSchema = new mongoose.Schema({
@@ -39,4 +37,5 @@ const resultSchema = new mongoose.Schema({
   }
 });
 
-module.exports = mongoose.model('Result', resultSchema);
+// ✅ Safe export to prevent OverwriteModelError
+module.exports = mongoose.models.Result || mongoose.model('Result', resultSchema);

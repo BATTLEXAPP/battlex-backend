@@ -66,4 +66,5 @@ const tournamentSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Tournament', tournamentSchema);
+// ✅ Safe export
+module.exports = mongoose.models.Tournament || mongoose.model('Tournament', tournamentSchema);

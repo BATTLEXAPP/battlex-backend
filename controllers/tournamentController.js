@@ -66,26 +66,28 @@ exports.createTournament = async (req, res) => {
 
     console.log("📊 Calculated prize pool:", calculatedPrizePool);
 
-    const tournament = new Tournament({
-      title,
-      description,
-      game,
-      gameType,
-      date,
-      time: formattedTime,
-      entryFee: Number(entryFee),
-      maxPlayers: Number(maxPlayers),
-      roomId,
-      roomPassword,
-      prizePool: calculatedPrizePool,
-      rules,
-      image: uploadResult.secure_url,
-      timestamp: tournamentDate.toISOString()
-    });
+    // After Cloudinary upload
+const tournament = new Tournament({
+  title,
+  description,
+  game,
+  gameType,
+  date,
+  time: formattedTime,
+  entryFee: Number(entryFee),
+  maxPlayers: Number(maxPlayers),
+  roomId,
+  roomPassword,
+  prizePool: calculatedPrizePool,
+  rules,
+  imageFilename: uploadResult.secure_url,  // ✅ Use imageFilename
+  timestamp: tournamentDate.toISOString()
+});
 
-    console.log("💾 Saving tournament to DB...");
-    await tournament.save();
-    console.log("✅ Tournament saved:", tournament._id);
+console.log("💾 Saving tournament to DB...");
+await tournament.save();
+console.log("✅ Tournament saved:", tournament._id);
+
 
     const safeTournament = {
       _id: tournament._id,

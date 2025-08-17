@@ -56,8 +56,16 @@ const tournamentSchema = new mongoose.Schema({
       userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
+        required: true,
       },
-      username: String,
+      username: {
+        type: String,
+        required: true,
+      },
+      phoneNumber: {
+        type: String,
+        required: true,
+      },
     },
   ],
   imageFilename: {
@@ -66,5 +74,4 @@ const tournamentSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// ✅ Safe export
 module.exports = mongoose.models.Tournament || mongoose.model('Tournament', tournamentSchema);

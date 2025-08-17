@@ -109,35 +109,55 @@ exports.createTournament = async (req, res) => {
   }
 };
 
-  // ✅ Join a tournament
-    exports.joinTournament = async (req, res) => {
+// ✅ Join a tournament using userId, username, and phoneNumber
+exports.joinTournament = async (req, res) => {
   try {
     const tournamentId = req.params.id;
-    const { phoneNumber, username } = req.body;
+    const { phoneNumber } = req.body;
 
-    const tournament = await Tournament.findById(tournamentId);
+    console.log("📥 joinTournament request received");
+    console.log("🏷️ Tournament ID:", tournamentId);
+    console.log("📞 Phone Number:", phoneNumber);
+
+    // Check if user exists
     const user = await User.findOne({ phoneNumber });
-
-    if (!user || !tournament) {
-      return res.status(404).json({ error: "User or Tournament not found" });
+    if (!user) {
+      console.warn("❌ User not found for phoneNumber:", phoneNumber);
+      return res.status(404).json({ error: "User not found" });
     }
 
+    // Check if tournament exists
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      console.warn("❌ Tournament not found for ID:", tournamentId);
+      return res.status(404).json({ error: "Tournament not found" });
+    }
+
+    console.log("👥 Current players in tournament:", tournament.players);
+
+    // Check if user already joined
     const alreadyJoined = tournament.players.find(p => p.userId.toString() === user._id.toString());
     if (alreadyJoined) {
+      console.warn("⚠️ User already joined tournament:", user._id);
       return res.status(400).json({ message: "Already joined this tournament" });
     }
 
+    // Check tournament capacity
     if (tournament.players.length >= tournament.maxPlayers) {
+      console.warn("⚠️ Tournament is full:", tournament.players.length, "/", tournament.maxPlayers);
       return res.status(400).json({ message: "Tournament is full" });
     }
 
+    // Check wallet balance
     if (user.walletBalance < tournament.entryFee) {
+      console.warn("⚠️ Insufficient wallet balance:", user.walletBalance, "<", tournament.entryFee);
       return res.status(400).json({ message: "Insufficient wallet balance" });
     }
 
     // Deduct entry fee
     user.walletBalance -= tournament.entryFee;
     await user.save();
+    console.log("💰 Entry fee deducted. New wallet balance:", user.walletBalance);
 
     await Transaction.create({
       user: user._id,
@@ -146,21 +166,35 @@ exports.createTournament = async (req, res) => {
       reason: `Joined tournament: ${tournament.title}`
     });
 
-    // Add user to players
-    tournament.players.push({ userId: user._id, username: user.username });
+    // Add user to players with phoneNumber
+    tournament.players.push({ 
+      userId: user._id, 
+      username: user.username,
+      phoneNumber: user.phoneNumber
+    });
     await tournament.save();
+    console.log("✅ User added to tournament:", user._id);
 
-    res.json({ message: "Successfully joined tournament", walletBalance: user.walletBalance });
+    res.json({
+      message: "Successfully joined tournament",
+      walletBalance: user.walletBalance,
+      tournamentId: tournament._id,
+      username: user.username,
+      phoneNumber: user.phoneNumber
+    });
+
   } catch (err) {
     console.error("❌ Error in joinTournament:", {
       name: err.name,
       message: err.message,
       stack: err.stack
     });
-
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
+
+
 
 
   // ✅ Get players who joined a tournament

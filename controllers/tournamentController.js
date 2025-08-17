@@ -160,11 +160,12 @@ exports.joinTournament = async (req, res) => {
     console.log("💰 Entry fee deducted. New wallet balance:", user.walletBalance);
 
     await Transaction.create({
-      user: user._id,
-      type: 'withdraw',
-      amount: tournament.entryFee,
-      reason: `Joined tournament: ${tournament.title}`
-    });
+  user: user._id,
+  type: 'withdraw',
+  amount: tournament.entryFee,
+  description: `Joined tournament: ${tournament.title}`
+});
+
 
     // Add user to players with phoneNumber
     tournament.players.push({ 

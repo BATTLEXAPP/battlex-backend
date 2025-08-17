@@ -161,7 +161,7 @@ exports.joinTournament = async (req, res) => {
 
     await Transaction.create({
       user: user._id,
-      type: 'deduct',
+      type: 'withdraw',
       amount: tournament.entryFee,
       reason: `Joined tournament: ${tournament.title}`
     });

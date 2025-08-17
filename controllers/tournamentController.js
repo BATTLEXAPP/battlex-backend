@@ -109,90 +109,124 @@ exports.createTournament = async (req, res) => {
   }
 };
 
-// ✅ Join a tournament using userId, username, and phoneNumber
+// ✅ Join a tournament using userId, username, and phoneNumber (atomic)
 exports.joinTournament = async (req, res) => {
+  const session = await User.startSession(); 
+  session.startTransaction();
+
   try {
     const tournamentId = req.params.id;
     const { phoneNumber } = req.body;
 
-    console.log("📥 joinTournament request received");
-    console.log("🏷️ Tournament ID:", tournamentId);
-    console.log("📞 Phone Number:", phoneNumber);
+    console.log("📥 joinTournament request received:", { tournamentId, phoneNumber });
 
     // Check if user exists
-    const user = await User.findOne({ phoneNumber });
+    const user = await User.findOne({ phoneNumber }).session(session);
     if (!user) {
-      console.warn("❌ User not found for phoneNumber:", phoneNumber);
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ error: "User not found" });
     }
 
     // Check if tournament exists
-    const tournament = await Tournament.findById(tournamentId);
+    const tournament = await Tournament.findById(tournamentId).session(session);
     if (!tournament) {
-      console.warn("❌ Tournament not found for ID:", tournamentId);
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({ error: "Tournament not found" });
     }
 
-    console.log("👥 Current players in tournament:", tournament.players);
+    // Already joined?
+    if (tournament.players.some(p => p.userId.toString() === user._id.toString())) {
+      await session.abortTransaction();
+      session.endSession();
 
-    // Check if user already joined
-    const alreadyJoined = tournament.players.find(p => p.userId.toString() === user._id.toString());
-    if (alreadyJoined) {
-      console.warn("⚠️ User already joined tournament:", user._id);
-      return res.status(400).json({ message: "Already joined this tournament" });
+      return res.status(200).json({
+        success: true,
+        message: "Already joined this tournament",
+        alreadyJoined: true,
+        walletBalance: user.walletBalance,
+        tournament: {
+          id: tournament._id,
+          title: tournament.title,
+          totalPlayers: tournament.players.length,
+          roomId: tournament.roomId,
+          roomPassword: tournament.roomPassword
+        },
+        user: {
+          id: user._id,
+          username: user.username,
+          phoneNumber: user.phoneNumber
+        }
+      });
     }
 
-    // Check tournament capacity
+    // Capacity check
     if (tournament.players.length >= tournament.maxPlayers) {
-      console.warn("⚠️ Tournament is full:", tournament.players.length, "/", tournament.maxPlayers);
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Tournament is full" });
     }
 
-    // Check wallet balance
+    // Wallet check
     if (user.walletBalance < tournament.entryFee) {
-      console.warn("⚠️ Insufficient wallet balance:", user.walletBalance, "<", tournament.entryFee);
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "Insufficient wallet balance" });
     }
 
     // Deduct entry fee
     user.walletBalance -= tournament.entryFee;
-    await user.save();
-    console.log("💰 Entry fee deducted. New wallet balance:", user.walletBalance);
+    await user.save({ session });
 
-    await Transaction.create({
-  user: user._id,
-  type: 'withdraw',
-  amount: tournament.entryFee,
-  description: `Joined tournament: ${tournament.title}`
-});
+    // Record transaction
+    await Transaction.create([{
+      user: user._id,
+      type: 'withdraw',
+      amount: tournament.entryFee,
+      description: `Joined tournament: ${tournament.title}`
+    }], { session });
 
-
-    // Add user to players with phoneNumber
-    tournament.players.push({ 
-      userId: user._id, 
+    // Add user to tournament players
+    tournament.players.push({
+      userId: user._id,
       username: user.username,
       phoneNumber: user.phoneNumber
     });
-    await tournament.save();
-    console.log("✅ User added to tournament:", user._id);
+    await tournament.save({ session });
 
+    // Commit
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Always return the same structure (with alreadyJoined + room details)
     res.json({
+      success: true,
       message: "Successfully joined tournament",
+      alreadyJoined: true,
       walletBalance: user.walletBalance,
-      tournamentId: tournament._id,
-      username: user.username,
-      phoneNumber: user.phoneNumber
+      tournament: {
+        id: tournament._id,
+        title: tournament.title,
+        totalPlayers: tournament.players.length,
+        roomId: tournament.roomId,
+        roomPassword: tournament.roomPassword
+      },
+      user: {
+        id: user._id,
+        username: user.username,
+        phoneNumber: user.phoneNumber
+      }
     });
 
   } catch (err) {
-    console.error("❌ Error in joinTournament:", {
-      name: err.name,
-      message: err.message,
-      stack: err.stack
-    });
+    console.error("❌ Error in joinTournament:", err);
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 
 
@@ -202,7 +236,7 @@ exports.joinTournament = async (req, res) => {
   exports.getJoinedPlayers = async (req, res) => {
     try {
       const tournamentId = req.params.id;
-      const tournament = await Tournament.findById(tournamentId);
+         tournament = await Tournament.findById(tournamentId);
 
       if (!tournament) {
         return res.status(404).json({ error: "Tournament not found" });
@@ -311,46 +345,106 @@ exports.joinTournament = async (req, res) => {
     }
   };
 
-  // ✅ Fetch all tournaments
-  exports.getAllTournaments = async (req, res) => {
-    try {
-      const tournaments = await Tournament.find().sort({ date: -1 });
+  // ✅ Fetch all tournaments (with join info for the logged-in user)
+exports.getAllTournaments = async (req, res) => {
+  try {
+    const { phoneNumber } = req.query; // frontend must send phoneNumber
+    let user = null;
 
-      if (!tournaments || tournaments.length === 0) {
-        console.log("⚠️ No tournaments found in DB");
-      }
-
-      res.status(200).json({ success: true, data: tournaments });
-    } catch (error) {
-      console.error("❌ Error fetching tournaments FULL:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
-
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch tournament",
-        error: error.message
-      });
+    if (phoneNumber) {
+      user = await User.findOne({ phoneNumber });
     }
-  };
 
-  // GET /api/tournaments?gameType=BR
-  exports.getTournamentsByType = async (req, res) => {
-    try {
-      const { gameType } = req.query;
+    const tournaments = await Tournament.find().sort({ date: -1 });
 
-      let tournaments;
-      if (gameType) {
-        tournaments = await Tournament.find({ gameType });
-      } else {
-        tournaments = await Tournament.find(); // return all
-      }
+    const response = tournaments.map(t => {
+      const hasJoined = user 
+        ? t.players.some(p => p.userId.toString() === user._id.toString()) 
+        : false;
 
-      res.status(200).json({ success: true, data: tournaments });
-    } catch (err) {
-      res.status(500).json({ success: false, message: 'Failed to fetch tournaments' });
+      return {
+        ...t.toObject(),
+        alreadyJoined: hasJoined,
+        roomId: hasJoined ? t.roomId : null,
+        roomPassword: hasJoined ? t.roomPassword : null
+      };
+    });
+
+    res.status(200).json({ success: true, data: response });
+  } catch (error) {
+    console.error("❌ Error fetching tournaments with join info:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch tournaments" });
+  }
+};
+
+
+// ✅ Fetch tournaments by type (with join info)
+exports.getTournamentsByType = async (req, res) => {
+  try {
+    const { gameType, phoneNumber } = req.query;
+
+    let user = null;
+    if (phoneNumber) {
+      user = await User.findOne({ phoneNumber });
     }
-  };
+
+    let tournaments = gameType
+      ? await Tournament.find({ gameType })
+      : await Tournament.find();
+
+    const response = tournaments.map(t => {
+      const hasJoined = user 
+        ? t.players.some(p => p.userId.toString() === user._id.toString()) 
+        : false;
+
+      return {
+        ...t.toObject(),
+        alreadyJoined: hasJoined,
+        roomId: hasJoined ? t.roomId : null,
+        roomPassword: hasJoined ? t.roomPassword : null
+      };
+    });
+
+    res.status(200).json({ success: true, data: response });
+  } catch (err) {
+    console.error("❌ Error fetching tournaments by type:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch tournaments" });
+  }
+};
+
+// ✅ Fetch single tournament details (with join info for the logged-in user)
+exports.getTournamentDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { phoneNumber } = req.query;
+
+    let user = null;
+    if (phoneNumber) {
+      user = await User.findOne({ phoneNumber });
+    }
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: "Tournament not found" });
+    }
+
+    const hasJoined = user 
+      ? tournament.players.some(p => p.userId.toString() === user._id.toString())
+      : false;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...tournament.toObject(),
+        alreadyJoined: hasJoined,
+        roomId: hasJoined ? tournament.roomId : null,
+        roomPassword: hasJoined ? tournament.roomPassword : null
+      }
+    });
+
+  } catch (err) {
+    console.error("❌ Error fetching tournament details:", err);
+    res.status(500).json({ success: false, message: "Failed to fetch tournament details" });
+  }
+};
 

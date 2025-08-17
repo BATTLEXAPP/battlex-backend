@@ -24,4 +24,8 @@ router.get('/results/user/:userId', tournamentController.getUserHistory);
 router.post('/join/:id', tournamentController.joinTournament);
 router.get('/:id/players', tournamentController.getJoinedPlayers);
 
+// Tournament details
+router.get('/:id/details', tournamentController.getTournamentDetails);
+
+
 module.exports = router;

@@ -426,3 +426,41 @@ exports.getTournamentsByType = async (req, res) => {
   }
 };
 
+// ✅ Get tournament details (for frontend detail page)
+exports.getTournamentDetails = async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    const { phoneNumber } = req.query; // optional for checking alreadyJoined
+
+    if (!tournamentId) {
+      return res.status(400).json({ success: false, message: "Tournament ID required" });
+    }
+
+    const tournament = await Tournament.findById(tournamentId);
+    if (!tournament) {
+      return res.status(404).json({ success: false, message: "Tournament not found" });
+    }
+
+    let user = null;
+    let alreadyJoined = false;
+    if (phoneNumber) {
+      user = await User.findOne({ phoneNumber });
+      if (user) {
+        alreadyJoined = tournament.players.some(p => p.userId.toString() === user._id.toString());
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...tournament.toObject(),
+        alreadyJoined,
+        roomId: alreadyJoined ? tournament.roomId : null,
+        roomPassword: alreadyJoined ? tournament.roomPassword : null,
+      }
+    });
+  } catch (err) {
+    console.error("❌ Error in getTournamentDetails:", err);
+    res.status(500).json({ success: false, message: "Internal server error at getTournamentDetails" });
+  }
+};

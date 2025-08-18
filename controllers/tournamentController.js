@@ -109,7 +109,7 @@ exports.createTournament = async (req, res) => {
   }
 };
 
-// ✅ Join a tournament using phoneNumber (atomic, with full logging)
+// ✅ Join a tournament using phoneNumber (atomic, full logging)
 exports.joinTournament = async (req, res) => {
   const session = await User.startSession(); 
   session.startTransaction();
@@ -144,21 +144,16 @@ exports.joinTournament = async (req, res) => {
     const alreadyJoined = tournament.players.some(p => p.userId.toString() === user._id.toString());
     if (alreadyJoined) {
       console.log("ℹ️ [JOIN] User already joined:", user._id.toString());
-
       await session.abortTransaction();
       session.endSession();
 
       return res.status(200).json({
         success: true,
         message: "Already joined this tournament",
-        alreadyJoined: true,
         walletBalance: user.walletBalance,
         tournament: {
-          id: tournament._id,
-          title: tournament.title,
-          totalPlayers: tournament.players.length,
-          roomId: tournament.roomId,
-          roomPassword: tournament.roomPassword
+          ...tournament.toObject(),
+          alreadyJoined: true
         },
         user: {
           id: user._id,
@@ -212,18 +207,14 @@ exports.joinTournament = async (req, res) => {
     session.endSession();
     console.log("✅ [JOIN] Transaction committed successfully.");
 
-    // ✅ Response
+    // ✅ Full response with all tournament details intact
     res.json({
       success: true,
       message: "Successfully joined tournament",
-      alreadyJoined: true,
       walletBalance: user.walletBalance,
       tournament: {
-        id: tournament._id,
-        title: tournament.title,
-        totalPlayers: tournament.players.length,
-        roomId: tournament.roomId,
-        roomPassword: tournament.roomPassword
+        ...tournament.toObject(),
+        alreadyJoined: true
       },
       user: {
         id: user._id,
@@ -239,6 +230,7 @@ exports.joinTournament = async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
+
 
 
 

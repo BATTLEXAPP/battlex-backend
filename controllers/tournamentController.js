@@ -430,7 +430,7 @@ exports.getTournamentsByType = async (req, res) => {
 exports.getTournamentDetails = async (req, res) => {
   try {
     const tournamentId = req.params.id;
-    const { phoneNumber } = req.query; // optional for checking alreadyJoined
+    const { phoneNumber } = req.query; // optional
 
     if (!tournamentId) {
       return res.status(400).json({ success: false, message: "Tournament ID required" });
@@ -441,13 +441,19 @@ exports.getTournamentDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Tournament not found" });
     }
 
-    let user = null;
+    // Check if any user is in the players array (alreadyJoined)
     let alreadyJoined = false;
+    let user = null;
+
     if (phoneNumber) {
       user = await User.findOne({ phoneNumber });
       if (user) {
         alreadyJoined = tournament.players.some(p => p.userId.toString() === user._id.toString());
       }
+    } else {
+      // If no phoneNumber provided, just detect if any player exists with the same phoneNumber in players (optional fallback)
+      // We can also leave it false if no identification available
+      alreadyJoined = false;
     }
 
     res.status(200).json({

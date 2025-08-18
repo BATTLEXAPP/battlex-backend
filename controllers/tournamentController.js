@@ -153,7 +153,9 @@ exports.joinTournament = async (req, res) => {
         walletBalance: user.walletBalance,
         tournament: {
           ...tournament.toObject(),
-          alreadyJoined: true
+          alreadyJoined: true,
+          roomId: tournament.roomId,          // ✅ unlock credentials
+          roomPassword: tournament.roomPassword // ✅ unlock credentials
         },
         user: {
           id: user._id,
@@ -207,14 +209,16 @@ exports.joinTournament = async (req, res) => {
     session.endSession();
     console.log("✅ [JOIN] Transaction committed successfully.");
 
-    // ✅ Full response with all tournament details intact
+    // ✅ Full response with room details if joined
     res.json({
       success: true,
       message: "Successfully joined tournament",
       walletBalance: user.walletBalance,
       tournament: {
         ...tournament.toObject(),
-        alreadyJoined: true
+        alreadyJoined: true,
+        roomId: tournament.roomId,           // ✅ always send
+        roomPassword: tournament.roomPassword // ✅ always send
       },
       user: {
         id: user._id,
@@ -422,7 +426,7 @@ exports.getTournamentsByType = async (req, res) => {
 exports.getTournamentDetails = async (req, res) => {
   try {
     const tournamentId = req.params.id;
-    const { phoneNumber } = req.query; // optional
+    const { phoneNumber } = req.query; // optional for personalized response
 
     if (!tournamentId) {
       return res.status(400).json({ success: false, message: "Tournament ID required" });
@@ -433,32 +437,35 @@ exports.getTournamentDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Tournament not found" });
     }
 
-    // Check if any user is in the players array (alreadyJoined)
     let alreadyJoined = false;
     let user = null;
 
     if (phoneNumber) {
       user = await User.findOne({ phoneNumber });
       if (user) {
-        alreadyJoined = tournament.players.some(p => p.userId.toString() === user._id.toString());
+        alreadyJoined = tournament.players.some(
+          (p) => p.userId.toString() === user._id.toString()
+        );
       }
-    } else {
-      // If no phoneNumber provided, just detect if any player exists with the same phoneNumber in players (optional fallback)
-      // We can also leave it false if no identification available
-      alreadyJoined = false;
     }
+
+    // ✅ Build the response object
+    const responseData = {
+      ...tournament.toObject(),
+      alreadyJoined,
+      roomId: alreadyJoined ? tournament.roomId : "Join to unlock",
+      roomPassword: alreadyJoined ? tournament.roomPassword : "Join to unlock",
+    };
 
     res.status(200).json({
       success: true,
-      data: {
-        ...tournament.toObject(),
-        alreadyJoined,
-        roomId: alreadyJoined ? tournament.roomId : null,
-        roomPassword: alreadyJoined ? tournament.roomPassword : null,
-      }
+      data: responseData,
     });
   } catch (err) {
     console.error("❌ Error in getTournamentDetails:", err);
-    res.status(500).json({ success: false, message: "Internal server error at getTournamentDetails" });
+    res
+      .status(500)
+      .json({ success: false, message: "Internal server error at getTournamentDetails" });
   }
 };
+

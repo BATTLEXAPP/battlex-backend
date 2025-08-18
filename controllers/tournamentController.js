@@ -414,37 +414,57 @@ exports.getTournamentsByType = async (req, res) => {
 
 // ✅ Fetch single tournament details (with join info for the logged-in user)
 exports.getTournamentDetails = async (req, res) => {
+  console.log("📌 [getTournamentDetails] API called with params:", req.params, "query:", req.query);
+
   try {
     const { id } = req.params;
     const { phoneNumber } = req.query;
 
+    console.log("➡️ Extracted tournamentId:", id, " phoneNumber:", phoneNumber);
+
     let user = null;
     if (phoneNumber) {
+      console.log("🔍 Looking for user with phoneNumber:", phoneNumber);
       user = await User.findOne({ phoneNumber });
+      console.log("✅ User lookup result:", user ? user._id : "User not found");
     }
 
+    console.log("🔍 Fetching tournament by ID:", id);
     const tournament = await Tournament.findById(id);
     if (!tournament) {
+      console.warn("⚠️ Tournament not found for ID:", id);
       return res.status(404).json({ success: false, message: "Tournament not found" });
     }
+    console.log("✅ Tournament found:", tournament.title);
 
-    const hasJoined = user 
-      ? tournament.players.some(p => p.userId.toString() === user._id.toString())
-      : false;
+    let hasJoined = false;
+    if (user) {
+      console.log("🔍 Checking if user has already joined tournament...");
+      hasJoined = tournament.players.some(p => {
+        const match = p.userId.toString() === user._id.toString();
+        if (match) console.log("✅ User already joined:", user._id);
+        return match;
+      });
+    }
 
+    console.log("📦 Preparing response object...");
+    const responseData = {
+      ...tournament.toObject(),
+      alreadyJoined: hasJoined,
+      roomId: hasJoined ? tournament.roomId : null,
+      roomPassword: hasJoined ? tournament.roomPassword : null
+    };
+
+    console.log("✅ Sending tournament details response");
     res.status(200).json({
       success: true,
-      data: {
-        ...tournament.toObject(),
-        alreadyJoined: hasJoined,
-        roomId: hasJoined ? tournament.roomId : null,
-        roomPassword: hasJoined ? tournament.roomPassword : null
-      }
+      data: responseData
     });
 
   } catch (err) {
-    console.error("❌ Error fetching tournament details:", err);
+    console.error("❌ Error in getTournamentDetails:", err.message, err.stack);
     res.status(500).json({ success: false, message: "Failed to fetch tournament details" });
   }
 };
+
 

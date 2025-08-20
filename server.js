@@ -11,6 +11,12 @@ const { pathToRegexp } = require('path-to-regexp');
 
 const app = express();
 
+// Ping route - keep server awake
+app.get("/api/ping", (req, res) => {
+  res.send("Backend is awake!");
+});
+
+
 // 🔥 Global error event logs
 process.on('uncaughtException', (err) => {
   console.error('❌ Uncaught Exception:', err.message);
